@@ -1,0 +1,22 @@
+# Created with WinGet Releaser using komac v2.17.2
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.28.0.schema.json
+
+PackageIdentifier: EtherAura.Kartend
+PackageVersion: 0.0.20
+InstallerLocale: en-US
+InstallerType: nullsoft
+Scope: machine
+UpgradeBehavior: install
+ProductCode: Kartend
+ReleaseDate: 2026-11-12
+AppsAndFeaturesEntries:
+- DisplayVersion: 0.0.20
+  ProductCode: Kartend
+InstallationMetadata:
+  DefaultInstallLocation: '%ProgramFiles%\Kartend'
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/EtherAura/Kartend/releases/download/v0.0.20/Kartend-0.0.20-windows-x64-setup.exe
+  InstallerSha256: 8B9F9D4D199266B192BC461ABD8204A5C2056FEC61D15E50552266B9B0D6497B
+ManifestType: installer
+ManifestVersion: 1.28.0
