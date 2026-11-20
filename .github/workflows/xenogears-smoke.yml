@@ -1,0 +1,55 @@
+name: Xenogears PC WinGet smoke
+on:
+  push:
+    branches: [xenogears-v2026.11.17-validation]
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Validate manifest and test silent installation
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $version = if (Get-Command winget -ErrorAction SilentlyContinue) { winget --version }
+          if ($version -notmatch '^v?(\d+)\.(\d+)\.' -or [version]"$($Matches[1]).$($Matches[2])" -lt [version]'1.28') {
+            Install-PackageProvider -Name NuGet -Force | Out-Null
+            Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
+            Repair-WinGetPackageManager -AllUsers -Latest -Force
+          }
+
+          function Invoke-WinGet {
+            & winget @args
+            if ($LASTEXITCODE -ne 0) { throw "winget $($args[0]) exited $LASTEXITCODE" }
+          }
+
+          $manifest = 'manifests/e/EtherAura/XenogearsPC/2026.11.17'
+          Invoke-WinGet --version
+          Invoke-WinGet validate --manifest $manifest
+          Invoke-WinGet settings --enable LocalManifestFiles
+          Invoke-WinGet install --manifest $manifest --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+
+          $key = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\xenogears-pc'
+          $entry = Get-ItemProperty -LiteralPath $key
+          if ($entry.DisplayName -cne 'Xenogears PC' -or $entry.DisplayVersion -cne '2026.11.17' -or
+              $entry.Publisher -cne 'xenogears-pc contributors' -or $entry.QuietUninstallString -notmatch ' /S$') {
+            throw 'Unexpected Apps and Features metadata'
+          }
+          foreach ($engine in 'xenogears.exe', 'xenogears-enhanced.exe') {
+            if (-not (Test-Path -LiteralPath (Join-Path $entry.InstallLocation $engine))) {
+              throw "Installed engine missing: $engine"
+            }
+          }
+
+          $uninstall = Join-Path $entry.InstallLocation 'uninstall.exe'
+          $exit = (Start-Process -FilePath $uninstall -ArgumentList '/S' -PassThru -Wait).ExitCode
+          if ($exit -ne 0 -or (Test-Path -LiteralPath $key)) {
+            throw "Silent uninstall failed (exit code $exit)"
+          }
+          Write-Host 'PASS WinGet manifest validation, silent install, Apps and Features metadata, and silent uninstall'
